@@ -1,0 +1,457 @@
+unit RELRANKVENDAS;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, frxClass,
+  frxDBSet, Data.DB, MemDS, DBAccess, Uni, Vcl.ComCtrls, Vcl.Buttons;
+
+type
+  TRelrkvend = class(TForm)
+    Panel1: TPanel;
+    Label1: TLabel;
+    Panel2: TPanel;
+    cmbgrupo: TComboBox;
+    Label2: TLabel;
+    Label3: TLabel;
+    cmbfornecedor: TComboBox;
+    Label4: TLabel;
+    Label5: TLabel;
+    cmbmarca: TComboBox;
+    cmbvendserv: TComboBox;
+    Label6: TLabel;
+    Panel3: TPanel;
+    Label7: TLabel;
+    dtfim: TDateTimePicker;
+    dtinicio: TDateTimePicker;
+    Label10: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    QRYGRUPOS: TUniQuery;
+    frxDBRKVEND: TfrxDBDataset;
+    FRXRAKVEND: TfrxReport;
+    QRYRKVEND: TUniQuery;
+    QRYMARCA: TUniQuery;
+    QRYFORNECEDOR: TUniQuery;
+    btn30dias: TBitBtn;
+    btn60dia: TBitBtn;
+    btn90dia: TBitBtn;
+    btn15dia: TBitBtn;
+    btnconsulta: TBitBtn;
+    Label11: TLabel;
+    EDITLOCALIZA: TEdit;
+    procedure btn15diaClick(Sender: TObject);
+    procedure btn30diasClick(Sender: TObject);
+    procedure btn60diaClick(Sender: TObject);
+    procedure btn90diaClick(Sender: TObject);
+    procedure CarregarGrupos;
+    procedure CarregarMarcas;
+    procedure CarregarFornecedores;
+    procedure CarregarVendaServico;
+    procedure FormShow(Sender: TObject);
+    procedure btnconsultaClick(Sender: TObject);
+
+  private
+    procedure GerarRelatorio(Dias: Integer);
+    procedure RelatorioManual;
+  public
+    { Public declarations }
+  end;
+
+var
+  Relrkvend: TRelrkvend;
+
+implementation
+
+{$R *.dfm}
+
+uses CONEXAOBD;
+
+procedure TRelrkvend.btn15diaClick(Sender: TObject);
+begin
+  GerarRelatorio(15);
+end;
+
+procedure TRelrkvend.btn30diasClick(Sender: TObject);
+begin
+  GerarRelatorio(30);
+end;
+
+procedure TRelrkvend.btn60diaClick(Sender: TObject);
+begin
+  GerarRelatorio(60);
+end;
+
+procedure TRelrkvend.btn90diaClick(Sender: TObject);
+begin
+  GerarRelatorio(90);
+end;
+
+
+procedure TRelrkvend.btnconsultaClick(Sender: TObject);
+begin
+RelatorioManual;
+end;
+
+procedure TRelrkvend.CarregarGrupos;
+begin
+  // Garante que a conexão do componente QRYGRUPOS está ativa
+  if not qrygrupos.Connection.Connected then
+    qrygrupos.Connection.Connected := True;
+
+  // Limpa o ComboBox
+  cmbgrupo.Items.Clear;
+
+  // Adiciona a opção "Todos" com o valor 0
+  cmbgrupo.Items.AddObject('Todos', TObject(0));
+
+  // Abre a query para carregar os dados
+  qrygrupos.Open;
+  try
+    // Popula o ComboBox com os dados
+    while not qrygrupos.Eof do
+    begin
+      // Adiciona o nome do setor (texto visível) e guarda o controle (objeto)
+      cmbgrupo.Items.AddObject(qrygrupos.FieldByName('Setor').AsString, TObject(qrygrupos.FieldByName('Controle').AsInteger));
+      qrygrupos.Next;
+    end;
+  finally
+    // Fecha a query para liberar recursos
+    qrygrupos.Close;
+  end;
+
+  // Seleciona a primeira opção ("Todos") por padrão
+  cmbgrupo.ItemIndex := 0;
+end;
+
+
+procedure TRelrkvend.CarregarMarcas;
+var
+  Marca: string;
+begin
+  // Garante que a conexão do componente QRYMARCA está ativa
+  if not qrymarca.Connection.Connected then
+    qrymarca.Connection.Connected := True;
+
+  // Limpa o ComboBox
+  cmbmarca.Items.Clear;
+
+  // Adiciona a opção "Todos"
+  cmbmarca.Items.AddObject('Todos', TObject(0));
+
+  // Define a consulta SQL para buscar fabricantes únicos e não nulos
+  // A propriedade 'Sql.Text' do seu QRYMARCA deve ser configurada da seguinte forma:
+  // 'SELECT DISTINCT FABRICANTE FROM tabest1 WHERE FABRICANTE IS NOT NULL AND FABRICANTE <> '' ORDER BY FABRICANTE'
+  // Abre a query para carregar os dados
+  qrymarca.Open;
+  try
+    // Popula o ComboBox com os dados
+    while not qrymarca.Eof do
+    begin
+      Marca := qrymarca.FieldByName('FABRICANTE').AsString;
+      // Adiciona a marca (texto visível) e guarda a mesma string como objeto
+      cmbmarca.Items.AddObject(Marca, TObject(Marca));
+      qrymarca.Next;
+    end;
+  finally
+    // Fecha a query para liberar recursos
+    qrymarca.Close;
+  end;
+
+  // Seleciona a primeira opção ("Todos") por padrão
+  cmbmarca.ItemIndex := 0;
+end;
+
+
+
+procedure TRelrkvend.CarregarFornecedores;
+begin
+  // Garante que a conexão do componente QRYFORNECEDOR está ativa
+  if not qryfornecedor.Connection.Connected then
+    qryfornecedor.Connection.Connected := True;
+
+  // Limpa o ComboBox
+  cmbfornecedor.Items.Clear;
+
+  // Adiciona a opção "Todos" com o valor 0
+  cmbfornecedor.Items.AddObject('Todos', TObject(0));
+
+  // Define a consulta SQL do seu QRYFORNECEDOR
+  // A propriedade 'Sql.Text' do seu QRYFORNECEDOR deve ser configurada da seguinte forma:
+  // 'SELECT Controle, Empresa FROM tabfor ORDER BY Empresa'
+  // Abre a query para carregar os dados
+  qryfornecedor.Open;
+  try
+    // Popula o ComboBox com os dados
+    while not qryfornecedor.Eof do
+    begin
+      // Adiciona o nome da empresa (texto visível) e guarda o controle (objeto)
+      cmbfornecedor.Items.AddObject(qryfornecedor.FieldByName('Empresa').AsString, TObject(qryfornecedor.FieldByName('Controle').AsInteger));
+      qryfornecedor.Next;
+    end;
+  finally
+    // Fecha a query para liberar recursos
+    qryfornecedor.Close;
+  end;
+
+  // Seleciona a primeira opção ("Todos") por padrão
+  cmbfornecedor.ItemIndex := 0;
+end;
+
+
+
+procedure TRelrkvend.CarregarVendaServico;
+begin
+  // Limpa o ComboBox
+  cmbvendserv.Items.Clear;
+
+  // Adiciona a opção "Todos" com o valor associado 0
+  cmbvendserv.Items.AddObject('Todos', TObject(0));
+
+  // Adiciona a opção "Produto" com o valor associado 0
+  cmbvendserv.Items.AddObject('Produto', TObject(0));
+
+  // Adiciona a opção "Serviço" com o valor associado 1
+  cmbvendserv.Items.AddObject('Serviço', TObject(1));
+
+  // Seleciona a primeira opção ("Todos") por padrão
+  cmbvendserv.ItemIndex := 0;
+end;
+
+
+
+
+
+
+
+
+
+procedure TRelrkvend.FormShow(Sender: TObject);
+begin
+dtinicio.DateTime:=now;
+dtfim.DateTime:=now;
+
+CarregarGrupos;
+CarregarMarcas;
+CarregarFornecedores;
+CarregarVendaServico;
+
+end;
+
+
+
+
+
+procedure TRelrkvend.GerarRelatorio(Dias: Integer);
+begin
+  // Fecha a query para receber o novo texto SQL
+  QRYRKVEND.Close;
+
+  // Define a nova consulta SQL completa
+  QRYRKVEND.SQL.Text :=
+    'SELECT ' +
+    '    P.Produto, ' +
+    '    P.CodInterno, ' +
+    '    SUM(CAST(REPLACE(ISNULL(I.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) - ISNULL(I.DescRateio, 0) + ISNULL(I.AcrescRateio, 0)) AS ValorTotal, ' +
+    '    SUM(I.QtdReal) AS QuantidadeVendida, ' +
+    '    CONVERT(VARCHAR(10), DATEADD(DAY, -:Dias, GETDATE()), 103) + '' a '' + CONVERT(VARCHAR(10), GETDATE(), 103) AS Periodo, ' +
+    '    P.Unidade, ' +
+    '    P.Quantidade AS Estoque, ' +
+    '    NE.CNPJ, ' +
+    '    NE.Razao_Social, ' +
+    '    G.Setor AS Grupo, ' +
+    '    F.Empresa AS Fornecedor, ' +
+    '    P.Fabricante AS Marca, ' +
+    '    P.naosaitabela, ' +
+    '    P.MOEDA, ' + // <-- Campo 'MOEDA' adicionado aqui.
+    // Novo campo que calcula o total do período
+    '    (SELECT SUM(CAST(REPLACE(ISNULL(T.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) - CAST(REPLACE(ISNULL(T.DescRateio, ''0''), '','', ''.'') AS DECIMAL(18, 2)) + CAST(REPLACE(ISNULL(T.AcrescRateio, ''0''), '','', ''.'') AS DECIMAL(18, 2))) ' +
+    '     FROM tabest3b T WITH (NOLOCK) ' +
+    '     LEFT JOIN tabest3a V2 WITH (NOLOCK) ON T.pedido = V2.pedido ' +
+    '     WHERE ' +
+    '     T.DataInc >= DATEADD(DAY, -:Dias, GETDATE()) ' +
+    '     AND CAST(REPLACE(ISNULL(T.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) > 0 ' +
+    '     AND V2.Cancelada <> 1 ' +
+    '     AND V2.Venda = 1 ' +
+    '     AND V2.Status = ''V'' ' +
+    '    ) AS ValorTotalPeriodo ' +
+    'FROM ' +
+    '    tabest3b I WITH (NOLOCK) ' +
+    'LEFT JOIN tabest1 P WITH (NOLOCK) ON I.lkProduto = P.controle ' +
+    'LEFT JOIN tabest3a V WITH (NOLOCK) ON I.pedido = V.pedido ' +
+    'LEFT JOIN tabest8 G WITH (NOLOCK) ON P.lkSetor = G.Controle ' +
+    'LEFT JOIN tabfor F WITH (NOLOCK) ON P.lkfornec = F.Controle ' +
+    'LEFT JOIN nfe_emitente NE ON I.idempresa = NE.codigo ' +
+    'WHERE ' +
+    '    ISNULL(CAST(REPLACE(I.Total, '','', ''.'') AS DECIMAL(18, 2)), 0) > 0 ' +
+    '    AND V.Cancelada <> 1 ' +
+    '    AND V.Venda = 1 ' +
+    '    AND V.Status = ''V'' ' +
+    '    AND I.DataInc >= DATEADD(DAY, -:Dias, CAST(GETDATE() AS DATE)) ' +
+    'GROUP BY ' +
+    '    P.Produto, ' +
+    '    P.CodInterno, ' +
+    '    P.Unidade, ' +
+    '    P.Quantidade, ' +
+    '    NE.CNPJ, ' +
+    '    NE.Razao_Social, ' +
+    '    G.Setor, ' +
+    '    F.Empresa, ' +
+    '    P.Fabricante, ' +
+    '    P.naosaitabela, ' +
+    '    P.MOEDA ' + // <-- Campo 'MOEDA' adicionado aqui.
+    'ORDER BY ' +
+    '    SUM(I.QtdReal) DESC';
+
+  // Atribui o valor do parâmetro :Dias
+  QRYRKVEND.ParamByName('Dias').AsInteger := Dias;
+
+  // Abre a query para buscar os dados
+  try
+    QRYRKVEND.Open;
+    frxDBRKVEND.DataSet := QRYRKVEND;
+    FRXRAKVEND.PrepareReport;
+    FRXRAKVEND.ShowReport;
+  finally
+    QRYRKVEND.Close;
+  end;
+end;
+
+
+
+procedure TRelrkvend.RelatorioManual;
+var
+  SQLText: TStringList;
+begin
+  SQLText := TStringList.Create;
+  try
+    SQLText.Add('SELECT ');
+    SQLText.Add('    P.Produto, ');
+    SQLText.Add('    P.CodInterno, ');
+    SQLText.Add('    SUM(CAST(REPLACE(ISNULL(I.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) - CAST(REPLACE(ISNULL(I.DescRateio, ''0''), '','', ''.'') AS DECIMAL(18, 2)) + CAST(REPLACE(ISNULL(I.AcrescRateio, ''0''), '','', ''.'') AS DECIMAL(18, 2))) AS ValorTotal, ');
+    SQLText.Add('    SUM(I.QtdReal) AS QuantidadeVendida, ');
+    SQLText.Add('    CONVERT(VARCHAR(10), :DataInicio, 103) + '' a '' + CONVERT(VARCHAR(10), :DataFim, 103) AS Periodo, ');
+    SQLText.Add('    P.Unidade, ');
+    SQLText.Add('    P.Quantidade AS Estoque, ');
+    SQLText.Add('    NE.CNPJ, ');
+    SQLText.Add('    NE.Razao_Social, ');
+    SQLText.Add('    G.Setor AS Grupo, ');
+    SQLText.Add('    F.Empresa AS Fornecedor, ');
+    SQLText.Add('    P.Fabricante AS Marca, ');
+    SQLText.Add('    P.naosaitabela, ');
+    SQLText.Add('    P.MOEDA, ');
+    // Subquery corrigida com os filtros
+    SQLText.Add('    (SELECT SUM(CAST(REPLACE(ISNULL(T.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) - CAST(REPLACE(ISNULL(T.DescRateio, ''0''), '','', ''.'') AS DECIMAL(18, 2)) + CAST(REPLACE(ISNULL(T.AcrescRateio, ''0''), '','', ''.'') AS DECIMAL(18, 2)))');
+    SQLText.Add('    FROM tabest3b T WITH (NOLOCK)');
+    SQLText.Add('    LEFT JOIN tabest1 P2 WITH (NOLOCK) ON T.lkProduto = P2.controle');
+    SQLText.Add('    LEFT JOIN tabest3a V2 WITH (NOLOCK) ON T.pedido = V2.pedido');
+    SQLText.Add('    LEFT JOIN tabest8 G2 WITH (NOLOCK) ON P2.lkSetor = G2.Controle');
+    SQLText.Add('    LEFT JOIN tabfor F2 WITH (NOLOCK) ON P2.lkfornec = F2.Controle');
+    SQLText.Add('    WHERE T.DataInc >= :DataInicio AND T.DataInc <= :DataFim');
+    SQLText.Add('    AND CAST(REPLACE(ISNULL(T.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) > 0 ');
+    SQLText.Add('    AND V2.Cancelada <> 1 ');
+    SQLText.Add('    AND V2.Venda = 1 ');
+    SQLText.Add('    AND V2.Status = ''V'' ');
+
+    // Adicionando os filtros da query principal na subquery
+    if cmbgrupo.ItemIndex > 0 then
+      SQLText.Add('    AND G2.Controle = :Grupo ');
+    if cmbfornecedor.ItemIndex > 0 then
+      SQLText.Add('    AND F2.Controle = :Fornecedor ');
+    if cmbmarca.ItemIndex > 0 then
+      SQLText.Add('    AND P2.Fabricante = :Marca ');
+    if cmbvendserv.ItemIndex > 0 then
+      SQLText.Add('    AND P2.naosaitabela = :TipoVenda ');
+    if not (Trim(EditLocaliza.Text) = '') then
+      SQLText.Add('    AND P2.MOEDA LIKE :Localizacao ');
+
+    SQLText.Add('    ) AS ValorTotalPeriodo');
+
+    // Resto da query principal
+    SQLText.Add('FROM ');
+    SQLText.Add('    tabest3b I WITH (NOLOCK) ');
+    SQLText.Add('LEFT JOIN tabest1 P WITH (NOLOCK) ON I.lkProduto = P.controle ');
+    SQLText.Add('LEFT JOIN tabest3a V WITH (NOLOCK) ON I.pedido = V.pedido ');
+    SQLText.Add('LEFT JOIN tabest8 G WITH (NOLOCK) ON P.lkSetor = G.Controle ');
+    SQLText.Add('LEFT JOIN tabfor F WITH (NOLOCK) ON P.lkfornec = F.Controle ');
+    SQLText.Add('LEFT JOIN nfe_emitente NE ON I.idempresa = NE.codigo ');
+    SQLText.Add('WHERE ');
+    SQLText.Add('    CAST(REPLACE(ISNULL(I.Total, ''0''), '','', ''.'') AS DECIMAL(18, 2)) > 0 ');
+    SQLText.Add('    AND V.Cancelada <> 1 ');
+    SQLText.Add('    AND V.Venda = 1 ');
+    SQLText.Add('    AND V.Status = ''V'' ');
+    SQLText.Add('    AND I.DataInc >= :DataInicio ');
+    SQLText.Add('    AND I.DataInc <= :DataFim ');
+
+    // Lógica de Filtros (Apenas adiciona as cláusulas AND)
+    if cmbgrupo.ItemIndex > 0 then
+      SQLText.Add('    AND G.Controle = :Grupo ');
+    if cmbfornecedor.ItemIndex > 0 then
+      SQLText.Add('    AND F.Controle = :Fornecedor ');
+    if cmbmarca.ItemIndex > 0 then
+      SQLText.Add('    AND P.Fabricante = :Marca ');
+    if cmbvendserv.ItemIndex > 0 then
+      SQLText.Add('    AND P.naosaitabela = :TipoVenda ');
+    if not (Trim(EditLocaliza.Text) = '') then
+      SQLText.Add('    AND P.MOEDA LIKE :Localizacao ');
+
+    SQLText.Add('GROUP BY ');
+    SQLText.Add('    P.Produto, ');
+    SQLText.Add('    P.CodInterno, ');
+    SQLText.Add('    P.Unidade, ');
+    SQLText.Add('    P.Quantidade, ');
+    SQLText.Add('    NE.CNPJ, ');
+    SQLText.Add('    NE.Razao_Social, ');
+    SQLText.Add('    G.Setor, ');
+    SQLText.Add('    F.Empresa, ');
+    SQLText.Add('    P.Fabricante, ');
+    SQLText.Add('    P.naosaitabela, ');
+    SQLText.Add('    P.MOEDA ');
+    SQLText.Add('ORDER BY ');
+    SQLText.Add('    SUM(I.QtdReal) DESC ');
+
+    // --- Ordem segura ---
+    QRYRKVEND.Close;
+    QRYRKVEND.Params.Clear;
+    QRYRKVEND.SQL.Text := SQLText.Text;
+
+    // Agora que a query está completa, defina os parâmetros
+    QRYRKVEND.ParamByName('DataInicio').AsDateTime := dtinicio.Date;
+    QRYRKVEND.ParamByName('DataFim').AsDateTime := dtfim.Date;
+    if cmbgrupo.ItemIndex > 0 then
+      QRYRKVEND.ParamByName('Grupo').AsInteger := Integer(cmbgrupo.Items.Objects[cmbgrupo.ItemIndex]);
+    if cmbfornecedor.ItemIndex > 0 then
+      QRYRKVEND.ParamByName('Fornecedor').AsInteger := Integer(cmbfornecedor.Items.Objects[cmbfornecedor.ItemIndex]);
+    if cmbmarca.ItemIndex > 0 then
+      QRYRKVEND.ParamByName('Marca').AsString := cmbmarca.Items[cmbmarca.ItemIndex];
+    if cmbvendserv.ItemIndex > 0 then
+      QRYRKVEND.ParamByName('TipoVenda').AsInteger := Integer(cmbvendserv.Items.Objects[cmbvendserv.ItemIndex]);
+
+    // O novo parâmetro para o filtro de localização
+    if not (Trim(EditLocaliza.Text) = '') then
+      QRYRKVEND.ParamByName('Localizacao').AsString := '%' + Trim(EditLocaliza.Text) + '%';
+
+    try
+      QRYRKVEND.Open;
+      frxDBRKVEND.DataSet := QRYRKVEND;
+      FRXRAKVEND.PrepareReport;
+      FRXRAKVEND.ShowReport;
+    finally
+      QRYRKVEND.Close;
+    end;
+  finally
+    SQLText.Free;
+  end;
+end;
+
+
+
+
+
+
+
+
+
+
+end.

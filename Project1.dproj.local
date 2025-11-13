@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2025/09/09 12:00:49.000.266,=F:\DELPHI\Unit1.pas</Transaction>
+    <Transaction>2025/09/09 12:06:08.000.450,F:\DELPHI\Unit1.pas=C:\Users\WILL\Music\RELRANKVENDAS.pas</Transaction>
+    <Transaction>2025/09/09 12:06:08.000.450,F:\DELPHI\Unit1.dfm=C:\Users\WILL\Music\RELRANKVENDAS.dfm</Transaction>
+    <Transaction>2025/09/09 12:06:12.000.405,F:\DELPHI\Project1.dproj=C:\Users\WILL\Music\Project1.dproj</Transaction>
+    <Transaction>2025/09/09 12:10:28.000.253,=C:\Users\WILL\Music\CONEXAOBD.pas</Transaction>
+  </Transactions>
+</BorlandProject>

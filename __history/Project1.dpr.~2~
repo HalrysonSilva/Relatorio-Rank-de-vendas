@@ -1,0 +1,14 @@
+program Project1;
+
+uses
+  Vcl.Forms,
+  RELRANKVENDAS in 'RELRANKVENDAS.pas' {Relrkvend};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TRelrkvend, Relrkvend);
+  Application.Run;
+end.
